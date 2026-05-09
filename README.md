@@ -4,7 +4,7 @@
 
 Built by sailors, for sailors.
 
-A professional NMEA-driven marine navigation instrument for Home Assistant, designed for real-world onboard use.
+A NMEA-driven marine navigation instrument for Home Assistant, designed for real-world onboard use.
 
 Created to fill a gap that did not exist in Home Assistant dashboards or existing HACS marine cards.
 
