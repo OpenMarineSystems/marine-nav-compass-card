@@ -2,8 +2,6 @@
 
 # Marine Nav Compass Card
 
-# Marine Nav Compass Card
-
 Built by sailors, for sailors.
 
 A professional NMEA-driven marine navigation instrument for Home Assistant, designed for real-world onboard use.
