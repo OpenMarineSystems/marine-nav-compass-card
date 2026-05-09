@@ -1,6 +1,4 @@
-<p align="center">
-  <img src="icon.png" width="300">
-</p>
+![Marine Nav Compass Card](.github/icon.png)
 
 # Marine Nav Compass Card
 
