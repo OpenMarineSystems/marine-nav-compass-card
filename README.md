@@ -1,3 +1,9 @@
+<p align="center">
+  <img src="icon.png" width="300">
+</p>
+
+# Marine Nav Compass Card
+
 # Marine Nav Compass Card
 
 Built by sailors, for sailors.
