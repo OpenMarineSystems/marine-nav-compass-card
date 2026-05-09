@@ -458,6 +458,12 @@ class MarineNavCompassCard extends HTMLElement {
       tideSpeedText.textContent = isNaN(currentSpeed)
         ? "-"
         : currentSpeed.toFixed(this.config.current_speed_decimals ?? 1);
+
+    
+       tideSpeedText.style.opacity = "1";
+      } else {
+        tideSpeedText.style.opacity = "0";
+      }
     }
 
     if (waypointMarker) {
