@@ -197,3 +197,11 @@ Works with:
 ## Feedback
 
 Real-world sailing feedback, bug reports, and feature requests are welcome.
+
+## Getting started with smart boating
+
+Rob from Smart Boat Inovations has created some great tutorials.
+
+https://smartboatinnovations.com/
+
+
