@@ -586,84 +586,121 @@ class MarineNavCompassCardEditor extends HTMLElement {
     this.render();
   }
 
-  configChanged(newConfig) {
-    this._config = {
-      ...this._config,
-      ...newConfig,
+  get schema() {
+    return [
+      {
+        name: "main",
+        type: "expandable",
+        title: "Main navigation sensors",
+        schema: [
+          { name: "heading_entity", selector: { entity: {} } },
+          { name: "true_angle_entity", selector: { entity: {} } },
+          { name: "apparent_angle_entity", selector: { entity: {} } },
+          { name: "current_direction_entity", selector: { entity: {} } },
+          { name: "current_speed_entity", selector: { entity: {} } },
+          { name: "waypoint_bearing_entity", selector: { entity: {} } },
+        ],
+      },
+      {
+        name: "top_box",
+        type: "expandable",
+        title: "Top box",
+        schema: [
+          { name: "top_label", selector: { text: {} } },
+          { name: "top_entity", selector: { entity: {} } },
+          { name: "top_decimals", selector: { text: {} } },
+        ],
+      },
+      {
+        name: "left_boxes",
+        type: "expandable",
+        title: "Left boxes",
+        schema: [
+          { name: "left_top_label", selector: { text: {} } },
+          { name: "left_top_entity", selector: { entity: {} } },
+          { name: "left_top_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+          { name: "left_bottom_label", selector: { text: {} } },
+          { name: "left_bottom_entity", selector: { entity: {} } },
+          { name: "left_bottom_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+        ],
+      },
+      {
+        name: "right_boxes",
+        type: "expandable",
+        title: "Right boxes",
+        schema: [
+          { name: "right_top_label", selector: { text: {} } },
+          { name: "right_top_entity", selector: { entity: {} } },
+          { name: "right_top_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+          { name: "right_bottom_label", selector: { text: {} } },
+          { name: "right_bottom_entity", selector: { entity: {} } },
+          { name: "right_bottom_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+        ],
+      },
+      {
+        name: "bottom_box",
+        type: "expandable",
+        title: "Bottom box and size",
+        schema: [
+          { name: "bottom_label", selector: { text: {} } },
+          { name: "bottom_entity", selector: { entity: {} } },
+          { name: "bottom_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+          { name: "current_speed_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
+          { name: "size", selector: { text: {} } },
+        ],
+      },
+    ];
+  }
+
+  get data() {
+    return {
+      main: {
+        heading_entity: this._config.heading_entity,
+        true_angle_entity: this._config.true_angle_entity,
+        apparent_angle_entity: this._config.apparent_angle_entity,
+        current_direction_entity: this._config.current_direction_entity,
+        current_speed_entity: this._config.current_speed_entity,
+        waypoint_bearing_entity: this._config.waypoint_bearing_entity,
+      },
+      top_box: {
+        top_label: this._config.top_label,
+        top_entity: this._config.top_entity,
+        top_decimals: this._config.top_decimals,
+      },
+      left_boxes: {
+        left_top_label: this._config.left_top_label,
+        left_top_entity: this._config.left_top_entity,
+        left_top_decimals: this._config.left_top_decimals,
+        left_bottom_label: this._config.left_bottom_label,
+        left_bottom_entity: this._config.left_bottom_entity,
+        left_bottom_decimals: this._config.left_bottom_decimals,
+      },
+      right_boxes: {
+        right_top_label: this._config.right_top_label,
+        right_top_entity: this._config.right_top_entity,
+        right_top_decimals: this._config.right_top_decimals,
+        right_bottom_label: this._config.right_bottom_label,
+        right_bottom_entity: this._config.right_bottom_entity,
+        right_bottom_decimals: this._config.right_bottom_decimals,
+      },
+      bottom_box: {
+        bottom_label: this._config.bottom_label,
+        bottom_entity: this._config.bottom_entity,
+        bottom_decimals: this._config.bottom_decimals,
+        current_speed_decimals: this._config.current_speed_decimals,
+        size: this._config.size,
+      },
     };
-
-    this.dispatchEvent(
-      new CustomEvent("config-changed", {
-        detail: { config: this._config },
-        bubbles: true,
-        composed: true,
-      })
-    );
   }
 
-  createTextInput(key, label) {
-    const el = document.createElement("ha-textfield");
-    el.label = label;
-    el.value = this._config[key] ?? "";
-    el.dataset.key = key;
-
-    el.addEventListener("input", (ev) => {
-      this.configChanged({ [key]: ev.target.value });
-    });
-
-    el.addEventListener("change", (ev) => {
-      this.configChanged({ [key]: ev.target.value });
-    });
-
-    return el;
-  }
-
-  createNumberInput(key, label) {
-    const el = document.createElement("ha-textfield");
-    el.label = label;
-    el.type = "number";
-    el.value = this._config[key] ?? "";
-    el.dataset.key = key;
-
-    el.addEventListener("input", (ev) => {
-      const raw = ev.target.value;
-      this.configChanged({ [key]: raw === "" ? "" : Number(raw) });
-    });
-
-    el.addEventListener("change", (ev) => {
-      const raw = ev.target.value;
-      this.configChanged({ [key]: raw === "" ? "" : Number(raw) });
-    });
-
-    return el;
-  }
-
-  createEntityPicker(key, label) {
-    const el = document.createElement("ha-entity-picker");
-    el.hass = this._hass;
-    el.label = label;
-    el.value = this._config[key] ?? "";
-    el.allowCustomEntity = true;
-    el.dataset.key = key;
-
-    el.addEventListener("value-changed", (ev) => {
-      this.configChanged({ [key]: ev.detail.value });
-    });
-
-    return el;
-  }
-
-  createSection(title, fields) {
-    const section = document.createElement("div");
-    section.className = "section";
-
-    const heading = document.createElement("div");
-    heading.className = "section-title";
-    heading.textContent = title;
-    section.appendChild(heading);
-
-    fields.forEach((field) => section.appendChild(field));
-    return section;
+  flattenData(data) {
+    return {
+      ...data.main,
+      ...data.top_box,
+      ...data.left_boxes,
+      ...data.right_boxes,
+      ...data.bottom_box,
+    };
   }
 
   render() {
@@ -671,85 +708,34 @@ class MarineNavCompassCardEditor extends HTMLElement {
 
     this.innerHTML = `
       <style>
-        .editor {
-          display: grid;
-          gap: 14px;
-        }
-
-        .section {
-          display: grid;
-          gap: 10px;
-          padding: 12px;
-          border: 1px solid var(--divider-color);
-          border-radius: 12px;
-        }
-
-        .section-title {
-          font-weight: 700;
-          color: var(--primary-text-color);
-        }
-
-        ha-textfield,
-        ha-entity-picker {
-          width: 100%;
+        ha-form {
+          display: block;
         }
       </style>
-
-      <div class="editor"></div>
+      <ha-form></ha-form>
     `;
 
-    const editor = this.querySelector(".editor");
+    const form = this.querySelector("ha-form");
+    form.hass = this._hass;
+    form.schema = this.schema;
+    form.data = this.data;
+    form.computeLabel = (schema) => schema.label || schema.name.replaceAll("_", " ");
 
-    editor.appendChild(
-      this.createSection("Main navigation sensors", [
-        this.createEntityPicker("heading_entity", "Heading entity"),
-        this.createEntityPicker("true_angle_entity", "True wind angle entity"),
-        this.createEntityPicker("apparent_angle_entity", "Apparent wind angle entity"),
-        this.createEntityPicker("current_direction_entity", "Current direction entity"),
-        this.createEntityPicker("current_speed_entity", "Current speed entity"),
-        this.createEntityPicker("waypoint_bearing_entity", "Waypoint bearing entity"),
-      ])
-    );
+    form.addEventListener("value-changed", (ev) => {
+      const flattened = this.flattenData(ev.detail.value);
+      this._config = {
+        ...this._config,
+        ...flattened,
+      };
 
-    editor.appendChild(
-      this.createSection("Top box", [
-        this.createTextInput("top_label", "Top label"),
-        this.createEntityPicker("top_entity", "Top entity"),
-        this.createTextInput("top_decimals", "Top decimals, or none"),
-      ])
-    );
-
-    editor.appendChild(
-      this.createSection("Left boxes", [
-        this.createTextInput("left_top_label", "Left top label"),
-        this.createEntityPicker("left_top_entity", "Left top entity"),
-        this.createNumberInput("left_top_decimals", "Left top decimals"),
-        this.createTextInput("left_bottom_label", "Left bottom label"),
-        this.createEntityPicker("left_bottom_entity", "Left bottom entity"),
-        this.createNumberInput("left_bottom_decimals", "Left bottom decimals"),
-      ])
-    );
-
-    editor.appendChild(
-      this.createSection("Right boxes", [
-        this.createTextInput("right_top_label", "Right top label"),
-        this.createEntityPicker("right_top_entity", "Right top entity"),
-        this.createNumberInput("right_top_decimals", "Right top decimals"),
-        this.createTextInput("right_bottom_label", "Right bottom label"),
-        this.createEntityPicker("right_bottom_entity", "Right bottom entity"),
-        this.createNumberInput("right_bottom_decimals", "Right bottom decimals"),
-      ])
-    );
-
-    editor.appendChild(
-      this.createSection("Bottom box and size", [
-        this.createTextInput("bottom_label", "Bottom label"),
-        this.createEntityPicker("bottom_entity", "Bottom entity"),
-        this.createNumberInput("bottom_decimals", "Bottom decimals"),
-        this.createNumberInput("current_speed_decimals", "Current speed decimals"),
-        this.createTextInput("size", "Card size, e.g. 100% or 300"),
-      ])
-    );
+      this.dispatchEvent(
+        new CustomEvent("config-changed", {
+          detail: { config: this._config },
+          bubbles: true,
+          composed: true,
+        })
+      );
+    });
   }
 }
 
