@@ -225,13 +225,58 @@ class MarineNavCompassCard extends HTMLElement {
     this.waypointCurrentAngle = null;
   }
 
+  static getStubConfig() {
+    return {
+      heading_entity: "sensor.nmea_127250_heading_degrees",
+      true_angle_entity: "sensor.nmea_130306_wind_angle_degrees",
+      apparent_angle_entity: "sensor.apparent_wind_direction",
+      current_direction_entity: "sensor.nmea_130577_set_degrees",
+      current_speed_entity: "sensor.nmea_130577_drift_knots",
+      waypoint_bearing_entity: "sensor.nmea_129284_bearing_position_to_destination_waypoint_degrees",
+
+      top_label: "HDG",
+      top_entity: "sensor.nmea_127250_heading_degrees",
+      top_decimals: "none",
+
+      left_top_label: "SOG",
+      left_top_entity: "sensor.nmea_129026_sog_knots",
+      left_top_decimals: 1,
+
+      left_bottom_label: "TWS",
+      left_bottom_entity: "sensor.nmea_130306_wind_speed_knots",
+      left_bottom_decimals: 1,
+
+      right_top_label: "AWS",
+      right_top_entity: "sensor.apparent_wind_speed",
+      right_top_decimals: 1,
+
+      right_bottom_label: "STW",
+      right_bottom_entity: "sensor.nmea_128259_speed_water_referenced_knots",
+      right_bottom_decimals: 1,
+
+      bottom_label: "DEPTH",
+      bottom_entity: "sensor.depth_keel",
+      bottom_decimals: 1,
+
+      current_speed_decimals: 1,
+      size: "100%",
+    };
+  }
+
+  static getConfigElement() {
+    return document.createElement("marine-nav-compass-card-editor");
+  }
+
   setConfig(config) {
-    this.config = config;
+    this.config = {
+      ...MarineNavCompassCard.getStubConfig(),
+      ...config,
+    };
 
     const svgWidth =
-      typeof config.size === "number"
-        ? `${config.size}px`
-        : config.size || "100%";
+      typeof this.config.size === "number"
+        ? `${this.config.size}px`
+        : this.config.size || "100%";
 
     this.innerHTML = `
       <ha-card>
@@ -270,6 +315,7 @@ class MarineNavCompassCard extends HTMLElement {
           transition: transform 0.6s ease, opacity 0.4s ease;
         }
 
+        #tideSpeedText,
         #bottomBox {
           transition: opacity 0.4s ease;
         }
@@ -356,7 +402,7 @@ class MarineNavCompassCard extends HTMLElement {
     }
 
     const places = decimals ?? this.config.decimals ?? 1;
-    return num.toFixed(places);
+    return num.toFixed(Number(places));
   }
 
   updateValue(svgId, entityId, decimals) {
@@ -417,6 +463,8 @@ class MarineNavCompassCard extends HTMLElement {
         trueMarker.style.opacity = "1";
       } else if (this.trueCurrentAngle !== null) {
         trueMarker.style.opacity = "1";
+      } else {
+        trueMarker.style.opacity = "0";
       }
     }
 
@@ -433,11 +481,19 @@ class MarineNavCompassCard extends HTMLElement {
         apparentMarker.style.opacity = "1";
       } else if (this.apparentCurrentAngle !== null) {
         apparentMarker.style.opacity = "1";
+      } else {
+        apparentMarker.style.opacity = "0";
       }
     }
 
+    const showTide =
+      !isNaN(currentDirection) &&
+      !isNaN(heading) &&
+      !isNaN(currentSpeed) &&
+      currentSpeed > 0.05;
+
     if (tideArrow) {
-      if (!isNaN(currentDirection) && !isNaN(heading)) {
+      if (showTide) {
         const targetTide = this.normalise360(currentDirection - heading);
 
         this.tideCurrentAngle = this.updateContinuousAngle(
@@ -446,22 +502,20 @@ class MarineNavCompassCard extends HTMLElement {
         );
 
         tideArrow.style.transform = `rotate(${this.tideCurrentAngle}deg)`;
-
-        tideArrow.style.opacity =
-          !isNaN(currentSpeed) && currentSpeed > 0.05 ? "0.85" : "0";
+        tideArrow.style.opacity = "0.85";
       } else {
         tideArrow.style.opacity = "0";
       }
     }
 
     if (tideSpeedText) {
-      tideSpeedText.textContent = isNaN(currentSpeed)
-        ? "-"
-        : currentSpeed.toFixed(this.config.current_speed_decimals ?? 1);
-
-    
-       tideSpeedText.style.opacity = "1";
+      if (showTide) {
+        tideSpeedText.textContent = currentSpeed.toFixed(
+          Number(this.config.current_speed_decimals ?? 1)
+        );
+        tideSpeedText.style.opacity = "1";
       } else {
+        tideSpeedText.textContent = "";
         tideSpeedText.style.opacity = "0";
       }
     }
@@ -512,11 +566,180 @@ class MarineNavCompassCard extends HTMLElement {
   }
 }
 
+class MarineNavCompassCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this._config = {};
+    this._hass = null;
+  }
+
+  setConfig(config) {
+    this._config = {
+      ...MarineNavCompassCard.getStubConfig(),
+      ...config,
+    };
+    this.render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this.render();
+  }
+
+  configChanged(newConfig) {
+    this._config = {
+      ...this._config,
+      ...newConfig,
+    };
+
+    this.dispatchEvent(
+      new CustomEvent("config-changed", {
+        detail: { config: this._config },
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  makeTextInput(key, label) {
+    const value = this._config[key] ?? "";
+    return `
+      <ha-textfield
+        label="${label}"
+        .value="${value}"
+        data-key="${key}"
+      ></ha-textfield>
+    `;
+  }
+
+  makeNumberInput(key, label) {
+    const value = this._config[key] ?? "";
+    return `
+      <ha-textfield
+        label="${label}"
+        type="number"
+        .value="${value}"
+        data-key="${key}"
+      ></ha-textfield>
+    `;
+  }
+
+  makeEntityPicker(key, label) {
+    const value = this._config[key] ?? "";
+    return `
+      <ha-entity-picker
+        label="${label}"
+        .hass="this._hass"
+        .value="${value}"
+        data-key="${key}"
+        allow-custom-entity
+      ></ha-entity-picker>
+    `;
+  }
+
+  render() {
+    if (!this._hass) return;
+
+    this.innerHTML = `
+      <style>
+        .editor {
+          display: grid;
+          gap: 14px;
+        }
+
+        .section {
+          display: grid;
+          gap: 10px;
+          padding: 12px;
+          border: 1px solid var(--divider-color);
+          border-radius: 12px;
+        }
+
+        .section-title {
+          font-weight: 700;
+          color: var(--primary-text-color);
+        }
+
+        ha-textfield,
+        ha-entity-picker {
+          width: 100%;
+        }
+      </style>
+
+      <div class="editor">
+        <div class="section">
+          <div class="section-title">Main navigation sensors</div>
+          ${this.makeEntityPicker("heading_entity", "Heading entity")}
+          ${this.makeEntityPicker("true_angle_entity", "True wind angle entity")}
+          ${this.makeEntityPicker("apparent_angle_entity", "Apparent wind angle entity")}
+          ${this.makeEntityPicker("current_direction_entity", "Current direction entity")}
+          ${this.makeEntityPicker("current_speed_entity", "Current speed entity")}
+          ${this.makeEntityPicker("waypoint_bearing_entity", "Waypoint bearing entity")}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Top box</div>
+          ${this.makeTextInput("top_label", "Top label")}
+          ${this.makeEntityPicker("top_entity", "Top entity")}
+          ${this.makeTextInput("top_decimals", "Top decimals, or none")}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Left boxes</div>
+          ${this.makeTextInput("left_top_label", "Left top label")}
+          ${this.makeEntityPicker("left_top_entity", "Left top entity")}
+          ${this.makeNumberInput("left_top_decimals", "Left top decimals")}
+          ${this.makeTextInput("left_bottom_label", "Left bottom label")}
+          ${this.makeEntityPicker("left_bottom_entity", "Left bottom entity")}
+          ${this.makeNumberInput("left_bottom_decimals", "Left bottom decimals")}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Right boxes</div>
+          ${this.makeTextInput("right_top_label", "Right top label")}
+          ${this.makeEntityPicker("right_top_entity", "Right top entity")}
+          ${this.makeNumberInput("right_top_decimals", "Right top decimals")}
+          ${this.makeTextInput("right_bottom_label", "Right bottom label")}
+          ${this.makeEntityPicker("right_bottom_entity", "Right bottom entity")}
+          ${this.makeNumberInput("right_bottom_decimals", "Right bottom decimals")}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Bottom box and size</div>
+          ${this.makeTextInput("bottom_label", "Bottom label")}
+          ${this.makeEntityPicker("bottom_entity", "Bottom entity")}
+          ${this.makeNumberInput("bottom_decimals", "Bottom decimals")}
+          ${this.makeNumberInput("current_speed_decimals", "Current speed decimals")}
+          ${this.makeTextInput("size", "Card size, e.g. 100% or 300")}
+        </div>
+      </div>
+    `;
+
+    this.querySelectorAll("ha-textfield, ha-entity-picker").forEach((el) => {
+      el.addEventListener("value-changed", (ev) => {
+        const key = el.dataset.key;
+        const value = ev.detail.value;
+        this.configChanged({ [key]: value });
+      });
+
+      el.addEventListener("input", (ev) => {
+        const key = el.dataset.key;
+        const value = ev.target.value;
+        this.configChanged({ [key]: value });
+      });
+    });
+  }
+}
+
 if (!customElements.get("marine-nav-compass-card")) {
   customElements.define("marine-nav-compass-card", MarineNavCompassCard);
 }
 
+if (!customElements.get("marine-nav-compass-card-editor")) {
+  customElements.define("marine-nav-compass-card-editor", MarineNavCompassCardEditor);
+}
+
 console.info(
-  "%cMARINE-NAV-COMPASS-CARD% v0.9.0-beta",
+  "%cMARINE-NAV-COMPASS-CARD% v0.9.1-beta",
   "color: #1e90ff; font-weight: bold;"
 );
