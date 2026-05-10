@@ -601,40 +601,69 @@ class MarineNavCompassCardEditor extends HTMLElement {
     );
   }
 
-  makeTextInput(key, label) {
-    const value = this._config[key] ?? "";
-    return `
-      <ha-textfield
-        label="${label}"
-        .value="${value}"
-        data-key="${key}"
-      ></ha-textfield>
-    `;
+  createTextInput(key, label) {
+    const el = document.createElement("ha-textfield");
+    el.label = label;
+    el.value = this._config[key] ?? "";
+    el.dataset.key = key;
+
+    el.addEventListener("input", (ev) => {
+      this.configChanged({ [key]: ev.target.value });
+    });
+
+    el.addEventListener("change", (ev) => {
+      this.configChanged({ [key]: ev.target.value });
+    });
+
+    return el;
   }
 
-  makeNumberInput(key, label) {
-    const value = this._config[key] ?? "";
-    return `
-      <ha-textfield
-        label="${label}"
-        type="number"
-        .value="${value}"
-        data-key="${key}"
-      ></ha-textfield>
-    `;
+  createNumberInput(key, label) {
+    const el = document.createElement("ha-textfield");
+    el.label = label;
+    el.type = "number";
+    el.value = this._config[key] ?? "";
+    el.dataset.key = key;
+
+    el.addEventListener("input", (ev) => {
+      const raw = ev.target.value;
+      this.configChanged({ [key]: raw === "" ? "" : Number(raw) });
+    });
+
+    el.addEventListener("change", (ev) => {
+      const raw = ev.target.value;
+      this.configChanged({ [key]: raw === "" ? "" : Number(raw) });
+    });
+
+    return el;
   }
 
-  makeEntityPicker(key, label) {
-    const value = this._config[key] ?? "";
-    return `
-      <ha-entity-picker
-        label="${label}"
-        .hass="this._hass"
-        .value="${value}"
-        data-key="${key}"
-        allow-custom-entity
-      ></ha-entity-picker>
-    `;
+  createEntityPicker(key, label) {
+    const el = document.createElement("ha-entity-picker");
+    el.hass = this._hass;
+    el.label = label;
+    el.value = this._config[key] ?? "";
+    el.allowCustomEntity = true;
+    el.dataset.key = key;
+
+    el.addEventListener("value-changed", (ev) => {
+      this.configChanged({ [key]: ev.detail.value });
+    });
+
+    return el;
+  }
+
+  createSection(title, fields) {
+    const section = document.createElement("div");
+    section.className = "section";
+
+    const heading = document.createElement("div");
+    heading.className = "section-title";
+    heading.textContent = title;
+    section.appendChild(heading);
+
+    fields.forEach((field) => section.appendChild(field));
+    return section;
   }
 
   render() {
@@ -666,68 +695,61 @@ class MarineNavCompassCardEditor extends HTMLElement {
         }
       </style>
 
-      <div class="editor">
-        <div class="section">
-          <div class="section-title">Main navigation sensors</div>
-          ${this.makeEntityPicker("heading_entity", "Heading entity")}
-          ${this.makeEntityPicker("true_angle_entity", "True wind angle entity")}
-          ${this.makeEntityPicker("apparent_angle_entity", "Apparent wind angle entity")}
-          ${this.makeEntityPicker("current_direction_entity", "Current direction entity")}
-          ${this.makeEntityPicker("current_speed_entity", "Current speed entity")}
-          ${this.makeEntityPicker("waypoint_bearing_entity", "Waypoint bearing entity")}
-        </div>
-
-        <div class="section">
-          <div class="section-title">Top box</div>
-          ${this.makeTextInput("top_label", "Top label")}
-          ${this.makeEntityPicker("top_entity", "Top entity")}
-          ${this.makeTextInput("top_decimals", "Top decimals, or none")}
-        </div>
-
-        <div class="section">
-          <div class="section-title">Left boxes</div>
-          ${this.makeTextInput("left_top_label", "Left top label")}
-          ${this.makeEntityPicker("left_top_entity", "Left top entity")}
-          ${this.makeNumberInput("left_top_decimals", "Left top decimals")}
-          ${this.makeTextInput("left_bottom_label", "Left bottom label")}
-          ${this.makeEntityPicker("left_bottom_entity", "Left bottom entity")}
-          ${this.makeNumberInput("left_bottom_decimals", "Left bottom decimals")}
-        </div>
-
-        <div class="section">
-          <div class="section-title">Right boxes</div>
-          ${this.makeTextInput("right_top_label", "Right top label")}
-          ${this.makeEntityPicker("right_top_entity", "Right top entity")}
-          ${this.makeNumberInput("right_top_decimals", "Right top decimals")}
-          ${this.makeTextInput("right_bottom_label", "Right bottom label")}
-          ${this.makeEntityPicker("right_bottom_entity", "Right bottom entity")}
-          ${this.makeNumberInput("right_bottom_decimals", "Right bottom decimals")}
-        </div>
-
-        <div class="section">
-          <div class="section-title">Bottom box and size</div>
-          ${this.makeTextInput("bottom_label", "Bottom label")}
-          ${this.makeEntityPicker("bottom_entity", "Bottom entity")}
-          ${this.makeNumberInput("bottom_decimals", "Bottom decimals")}
-          ${this.makeNumberInput("current_speed_decimals", "Current speed decimals")}
-          ${this.makeTextInput("size", "Card size, e.g. 100% or 300")}
-        </div>
-      </div>
+      <div class="editor"></div>
     `;
 
-    this.querySelectorAll("ha-textfield, ha-entity-picker").forEach((el) => {
-      el.addEventListener("value-changed", (ev) => {
-        const key = el.dataset.key;
-        const value = ev.detail.value;
-        this.configChanged({ [key]: value });
-      });
+    const editor = this.querySelector(".editor");
 
-      el.addEventListener("input", (ev) => {
-        const key = el.dataset.key;
-        const value = ev.target.value;
-        this.configChanged({ [key]: value });
-      });
-    });
+    editor.appendChild(
+      this.createSection("Main navigation sensors", [
+        this.createEntityPicker("heading_entity", "Heading entity"),
+        this.createEntityPicker("true_angle_entity", "True wind angle entity"),
+        this.createEntityPicker("apparent_angle_entity", "Apparent wind angle entity"),
+        this.createEntityPicker("current_direction_entity", "Current direction entity"),
+        this.createEntityPicker("current_speed_entity", "Current speed entity"),
+        this.createEntityPicker("waypoint_bearing_entity", "Waypoint bearing entity"),
+      ])
+    );
+
+    editor.appendChild(
+      this.createSection("Top box", [
+        this.createTextInput("top_label", "Top label"),
+        this.createEntityPicker("top_entity", "Top entity"),
+        this.createTextInput("top_decimals", "Top decimals, or none"),
+      ])
+    );
+
+    editor.appendChild(
+      this.createSection("Left boxes", [
+        this.createTextInput("left_top_label", "Left top label"),
+        this.createEntityPicker("left_top_entity", "Left top entity"),
+        this.createNumberInput("left_top_decimals", "Left top decimals"),
+        this.createTextInput("left_bottom_label", "Left bottom label"),
+        this.createEntityPicker("left_bottom_entity", "Left bottom entity"),
+        this.createNumberInput("left_bottom_decimals", "Left bottom decimals"),
+      ])
+    );
+
+    editor.appendChild(
+      this.createSection("Right boxes", [
+        this.createTextInput("right_top_label", "Right top label"),
+        this.createEntityPicker("right_top_entity", "Right top entity"),
+        this.createNumberInput("right_top_decimals", "Right top decimals"),
+        this.createTextInput("right_bottom_label", "Right bottom label"),
+        this.createEntityPicker("right_bottom_entity", "Right bottom entity"),
+        this.createNumberInput("right_bottom_decimals", "Right bottom decimals"),
+      ])
+    );
+
+    editor.appendChild(
+      this.createSection("Bottom box and size", [
+        this.createTextInput("bottom_label", "Bottom label"),
+        this.createEntityPicker("bottom_entity", "Bottom entity"),
+        this.createNumberInput("bottom_decimals", "Bottom decimals"),
+        this.createNumberInput("current_speed_decimals", "Current speed decimals"),
+        this.createTextInput("size", "Card size, e.g. 100% or 300"),
+      ])
+    );
   }
 }
 
