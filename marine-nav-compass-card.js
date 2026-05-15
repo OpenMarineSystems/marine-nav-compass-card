@@ -223,6 +223,10 @@ class MarineNavCompassCard extends HTMLElement {
     this.headingCurrentAngle = null;
     this.tideCurrentAngle = null;
     this.waypointCurrentAngle = null;
+
+    this.lastInputSnapshot = "";
+    this.lastProcessedUpdateTime = 0;
+    this.updateInterval = 1000;
   }
 
   static getStubConfig() {
@@ -260,6 +264,7 @@ class MarineNavCompassCard extends HTMLElement {
 
       current_speed_decimals: 1,
       size: "100%",
+      update_interval_ms: 1000,
     };
   }
 
@@ -272,6 +277,8 @@ class MarineNavCompassCard extends HTMLElement {
       ...MarineNavCompassCard.getStubConfig(),
       ...config,
     };
+
+    this.updateInterval = Number(this.config.update_interval_ms ?? 1000);
 
     const svgWidth =
       typeof this.config.size === "number"
@@ -328,7 +335,51 @@ class MarineNavCompassCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    if (!this.config) return;
+
+    const snapshot = JSON.stringify({
+      heading: this.roundState(this.config.heading_entity, 1),
+      trueAngle: this.roundState(this.config.true_angle_entity, 1),
+      apparentAngle: this.roundState(this.config.apparent_angle_entity, 1),
+      currentDirection: this.roundState(this.config.current_direction_entity, 1),
+      currentSpeed: this.roundState(this.config.current_speed_entity, 2),
+      waypointBearing: this.roundState(this.config.waypoint_bearing_entity, 1),
+      top: this.stateSnapshot(this.config.top_entity),
+      leftTop: this.stateSnapshot(this.config.left_top_entity),
+      leftBottom: this.stateSnapshot(this.config.left_bottom_entity),
+      rightTop: this.stateSnapshot(this.config.right_top_entity),
+      rightBottom: this.stateSnapshot(this.config.right_bottom_entity),
+      bottom: this.stateSnapshot(this.config.bottom_entity),
+    });
+
+    if (snapshot === this.lastInputSnapshot) return;
+
+    const now = Date.now();
+    if (
+      this.lastProcessedUpdateTime &&
+      now - this.lastProcessedUpdateTime < this.updateInterval
+    ) {
+      this.lastInputSnapshot = snapshot;
+      return;
+    }
+
+    this.lastInputSnapshot = snapshot;
+    this.lastProcessedUpdateTime = now;
+
     this.updateGauge();
+  }
+
+  roundState(entityId, decimals = 1) {
+    const value = this.getNumericState(entityId);
+    if (isNaN(value)) return null;
+
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
+  }
+
+  stateSnapshot(entityId) {
+    if (!entityId || !this._hass || !this._hass.states[entityId]) return null;
+    return this._hass.states[entityId].state;
   }
 
   normalise360(angle) {
@@ -409,14 +460,19 @@ class MarineNavCompassCard extends HTMLElement {
     const el = this.querySelector(svgId);
     if (!el) return;
 
-    el.textContent = this.formatEntityValue(entityId, decimals);
+    const value = this.formatEntityValue(entityId, decimals);
+    if (el.textContent !== value) {
+      el.textContent = value;
+    }
   }
 
   updateLabel(svgId, label) {
     const el = this.querySelector(svgId);
     if (!el || label === undefined || label === null) return;
 
-    el.textContent = label;
+    if (el.textContent !== label) {
+      el.textContent = label;
+    }
   }
 
   updateGauge() {
@@ -647,6 +703,7 @@ class MarineNavCompassCardEditor extends HTMLElement {
           { name: "bottom_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
           { name: "current_speed_decimals", selector: { number: { min: 0, max: 3, mode: "box" } } },
           { name: "size", selector: { text: {} } },
+          { name: "update_interval_ms", selector: { number: { min: 250, max: 5000, mode: "box" } } },
         ],
       },
     ];
@@ -689,6 +746,7 @@ class MarineNavCompassCardEditor extends HTMLElement {
         bottom_decimals: this._config.bottom_decimals,
         current_speed_decimals: this._config.current_speed_decimals,
         size: this._config.size,
+        update_interval_ms: this._config.update_interval_ms,
       },
     };
   }
@@ -748,6 +806,6 @@ if (!customElements.get("marine-nav-compass-card-editor")) {
 }
 
 console.info(
-  "%cMARINE-NAV-COMPASS-CARD% v0.9.1-beta",
+  "%cMARINE-NAV-COMPASS-CARD% v0.9.2-safe",
   "color: #1e90ff; font-weight: bold;"
 );
